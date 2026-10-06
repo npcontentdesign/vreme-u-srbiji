@@ -159,6 +159,7 @@ body::after{content:"";position:fixed;inset:0;pointer-events:none;background:rad
 #src.live{background:none;border:0;padding:0;font-size:12px;color:var(--ink-soft)}
 #src.live::before{width:6px;height:6px}
 #fallback{position:fixed;inset:0;display:none;align-items:center;justify-content:center;padding:32px;text-align:center;font-size:16px;line-height:1.5}
+@media (min-width:641px){.zoom{margin-bottom:calc(env(safe-area-inset-bottom,0px) + 72px)}}
 @media (max-width:1100px){#timebar{width:min(600px,calc(100vw - 340px));min-width:0}}
 @media (max-width:640px){
   header{padding-left:calc(env(safe-area-inset-left,0px) + 18px);padding-top:calc(env(safe-area-inset-top,0px) + 16px)}
@@ -249,6 +250,7 @@ body.intro #gl,body.intro #labels,body.intro #stars{opacity:0;transition:none}
   .ab-card dl{grid-template-columns:1fr;gap:1px}
   .ab-card dd{margin-bottom:8px}
 }
+@media (min-width:641px){.zoom{margin-bottom:calc(env(safe-area-inset-bottom,0px) + 78px)}}
 @media (prefers-reduced-motion: reduce){
   #gl,#labels,#stars,#about,.ab-card{transition:none}
   #src.loading::before{animation:none}
@@ -918,7 +920,7 @@ const FOV=34*Math.PI/180;
 const KEYS=['yaw','pitch','dist','tx','ty','tz'];
 const cam={yaw:0,pitch:1.42,dist:200,tx:0,ty:0,tz:2};
 const goal={...cam};
-let glide=false;let rate=1.6, velYaw=0, flying=true, pendZ=0, zAX=0, zAY=0;
+let homeLock=false;let glide=false;let rate=1.6, velYaw=0, flying=true, pendZ=0, zAX=0, zAY=0;
 let tbCache=0;const LAY={off:0,k:1};
 function layout(){const H=innerHeight,mob=innerWidth<=640;const tbEl=document.getElementById('timebar');if(!tbEl)return;const tb=tbEl.getBoundingClientRect();
   let bt=tb.top;const pe=document.getElementById("pop");if(mob&&pe&&!pe.hidden){const pr=pe.getBoundingClientRect();if(pr.height)bt=Math.min(bt,pr.top);}const bottom=bt-10;const top=mob?document.querySelector('header').getBoundingClientRect().bottom+4:36;
@@ -932,16 +934,16 @@ const clampD=d=>Math.min(fitDist()*1.3,Math.max(8,d));
 function clampGoal(){goal.pitch=Math.min(1.48,Math.max(0.26,goal.pitch));}
 function clampCam(){cam.dist=clampD(cam.dist);cam.tx=Math.max(xmin+3,Math.min(xmax-3,cam.tx));cam.tz=Math.max(zmin+3,Math.min(zmax-3,cam.tz));
   goal.dist=cam.dist;goal.tx=cam.tx;goal.tz=cam.tz;goal.ty=cam.ty;}
-function setGoal(t,r){Object.assign(goal,t);rate=r;flying=true;pendZ=0;}
+function setGoal(t,r){Object.assign(goal,t);rate=r;flying=true;pendZ=0;homeLock=false;}
 let active=-1;
 const resetBtn=document.getElementById('reset');
-function userTook(){if(flying){flying=false;KEYS.forEach(k=>goal[k]=cam[k]);}rate=14;hideHint();}
+function userTook(){homeLock=false;if(flying){flying=false;KEYS.forEach(k=>goal[k]=cam[k]);}rate=14;hideHint();}
 function focusCity(i){active=i;CITIES.forEach((c,k)=>{c.el.classList.toggle('active',k===i);c.dot.classList.toggle('active',k===i);});
   const c=CITIES[i];setGoal({pitch:0.74,dist:Math.min(fitDist()*0.4,44),tx:c.x,ty:c.y,tz:c.z},reduceMotion?60:3.2);velYaw=0;resetBtn.classList.add('show');hideHint();}
 function goHome(){sfx('whoosh');active=-1;CITIES.forEach(c=>{c.el.classList.remove('active');c.dot.classList.remove('active');});
-  const h=home();let dy=((h.yaw-goal.yaw)%(2*Math.PI)+3*Math.PI)%(2*Math.PI)-Math.PI;h.yaw=goal.yaw+dy;setGoal(h,reduceMotion?60:3);velYaw=0;resetBtn.classList.remove('show');}
+  const h=home();let dy=((h.yaw-goal.yaw)%(2*Math.PI)+3*Math.PI)%(2*Math.PI)-Math.PI;h.yaw=goal.yaw+dy;setGoal(h,reduceMotion?60:3);homeLock=true;velYaw=0;resetBtn.classList.remove('show');}
 resetBtn.addEventListener('click',goHome);
-{const h=home();Object.assign(cam,{...h,yaw:h.yaw+0.22,pitch:Math.min(1.45,h.pitch+0.06),dist:h.dist*1.45});Object.assign(goal,cam);setGoal(h,reduceMotion?60:1.6);if(location.hash==="#still")Object.assign(cam,goal);window.__fc=i=>selectCity(i);window.__ground=(x,y)=>ground(x,y);window.__home=home;window.__P=()=>{basis();layout();const a=canvas.width/canvas.height;const T=[1,0,0,0,0,1,0,0,0,0,1,0,0,viewOff(),0,1];VP=mul(T,mul(persp(FOV,a,0.4,700),lookAt(eye,[cam.tx,cam.ty,cam.tz],[0,1,0])));return CITIES.map(c=>proj(c.x,c.y,c.z).slice(0,2));};window.__setT=h=>{live=false;playing=false;simT=bgMidnight(Date.now())+h*3600000;dayAnchor=simT;paintTrack();lastIdx=-1;updateTimeUI();};window.__cam=cam;window.__goal=goal;}
+{const h=home();Object.assign(cam,{...h,yaw:h.yaw+0.22,pitch:Math.min(1.45,h.pitch+0.06),dist:h.dist*1.45});Object.assign(goal,cam);setGoal(h,reduceMotion?60:1.6);homeLock=true;if(location.hash==="#still")Object.assign(cam,goal);window.__fc=i=>selectCity(i);window.__ground=(x,y)=>ground(x,y);window.__home=home;window.__P=()=>{basis();layout();const a=canvas.width/canvas.height;const T=[1,0,0,0,0,1,0,0,0,0,1,0,0,viewOff(),0,1];VP=mul(T,mul(persp(FOV,a,0.4,700),lookAt(eye,[cam.tx,cam.ty,cam.tz],[0,1,0])));return CITIES.map(c=>proj(c.x,c.y,c.z).slice(0,2));};window.__setT=h=>{live=false;playing=false;simT=bgMidnight(Date.now())+h*3600000;dayAnchor=simT;paintTrack();lastIdx=-1;updateTimeUI();};window.__cam=cam;window.__goal=goal;}
 
 // camera basis & ground picking
 let eye=[0,0,0],VP=null;
@@ -1328,7 +1330,7 @@ function updateTimeUI(){
   updateCities();curveDirty=true;}
 playBtn.addEventListener('click',()=>{playing=!playing;if(playing)live=false;updateTimeUI();});
 const tbEl=document.getElementById('timebar'),tbHandle=document.getElementById('tbHandle'),tbInfo=document.getElementById('tbInfo');
-function setOpen(o){const f0=fitDist();tbEl.classList.toggle('open',o);if(f0&&sel<0){const f1=fitDist();userTook();flying=true;rate=5;Object.assign(goal,{...cam,dist:clampD(cam.dist*f1/f0)});}tbHandle.setAttribute('aria-expanded',o?'true':'false');tbHandle.setAttribute('aria-label',o?'Sakrij krivu temperature':'Prikaži krivu temperature');curveDirty=true;}
+function setOpen(o){const f0=fitDist();tbEl.classList.toggle('open',o);if(f0&&sel<0&&!homeLock){const f1=fitDist();userTook();flying=true;rate=5;Object.assign(goal,{...cam,dist:clampD(cam.dist*f1/f0)});}tbHandle.setAttribute('aria-expanded',o?'true':'false');tbHandle.setAttribute('aria-label',o?'Sakrij krivu temperature':'Prikaži krivu temperature');curveDirty=true;}
 setOpen(innerWidth>640);
 let swY=null;
 tbHandle.addEventListener('click',()=>setOpen(!tbEl.classList.contains('open')));
@@ -1459,7 +1461,7 @@ function frame(now){
   resize();
   if(!pts.size&&Math.abs(velYaw)>1e-4){goal.yaw+=velYaw*dt;velYaw*=Math.exp(-dt*3.2);}
   const k=1-Math.exp(-dt*rate);
-  if(flying){KEYS.forEach(key=>{cam[key]+=(goal[key]-cam[key])*k;});}
+  if(flying){if(homeLock){const h=home();goal.dist=h.dist;goal.pitch=h.pitch;goal.tx=h.tx;goal.ty=h.ty;goal.tz=h.tz;}KEYS.forEach(key=>{cam[key]+=(goal[key]-cam[key])*k;});}
   else{
     cam.yaw+=(goal.yaw-cam.yaw)*k;cam.pitch+=(goal.pitch-cam.pitch)*k;
     if(glide&&!pts.size){cam.tx+=panV[0]*dt;cam.tz+=panV[1]*dt;clampCam();const d=Math.exp(-dt*4.5);panV=[panV[0]*d,panV[1]*d];if(Math.hypot(panV[0],panV[1])<0.3)glide=false;}
